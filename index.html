@@ -47,6 +47,7 @@
   .chips { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
   .chip { margin:0; padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--fg); font-size:.85rem; }
   .chip.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .dcount { min-width:2ch; text-align:right; font-weight:600; font-variant-numeric:tabular-nums; }
   .bq { margin-bottom:12px; width:100%; }
   .blist { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
   .blist li { display:block; padding:12px 14px; font-size:1.05rem; }
@@ -93,6 +94,7 @@
     </form>
   </div>
   <a class="batchcard" href="#/batch"><span class="link">バッチ連携</span><small class="start">成功リスト（毎日自動更新）</small></a>
+  <a class="batchcard" href="#/diary"><span class="link">くまの日記</span><small class="start">日ごとのカウント</small></a>
   <div class="backup">
     <button type="button" id="export">バックアップを保存</button>
     <button type="button" id="import">バックアップを読み込む</button>
@@ -139,6 +141,7 @@
   function render() {
     const m = location.hash.match(/^#\/(\d+)$/);
     const idx = m ? +m[1] : -1;
+    if (location.hash === "#/diary") { document.getElementById("cover").hidden = true; document.getElementById("detail").hidden = false; return renderDiary(); }
     if (location.hash === "#/batch") { document.getElementById("cover").hidden = true; document.getElementById("detail").hidden = false; return renderBatch(); }
     document.getElementById("cover").hidden = idx >= 0 && !!items[idx];
     document.getElementById("detail").hidden = !(idx >= 0 && items[idx]);
@@ -159,6 +162,46 @@
       li.append(row);
       list.append(li);
     });
+  }
+
+  const ymd = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  function renderDiary() {
+    const box = document.getElementById("detail");
+    document.title = "くまの日記";
+    box.innerHTML = "";
+    const DK = "diary-v1";
+    let diary = {};
+    try { diary = JSON.parse(localStorage.getItem(DK)) || {}; } catch (e) {}
+    if (typeof diary.start !== "string" || !diary.counts) diary = { start: ymd(new Date()), counts: {} };
+    try { localStorage.setItem(DK, JSON.stringify(diary)); } catch (e) {}
+    const back = document.createElement("button"); back.className = "back"; back.textContent = "← 戻る";
+    back.onclick = () => { location.hash = ""; };
+    const h = document.createElement("h1"); h.textContent = "くまの日記";
+    const sub = document.createElement("div"); sub.className = "sub";
+    const total = () => Object.values(diary.counts).reduce((a, b) => a + b, 0);
+    const ul = document.createElement("ul"); ul.className = "blist";
+    const days = [];
+    const [sy, sm, sd] = diary.start.split("-").map(Number);
+    for (let d = new Date(sy, sm - 1, sd); ymd(d) <= ymd(new Date()); d.setDate(d.getDate() + 1)) days.push(ymd(d));
+    days.reverse();
+    const W = "日月火水木金土";
+    days.forEach(day => {
+      const li = document.createElement("li"); li.className = "bitem";
+      const [y, m, dd] = day.split("-").map(Number);
+      const t = document.createElement("span"); t.textContent = m + "月" + dd + "日（" + W[new Date(y, m - 1, dd).getDay()] + "）" + (day === ymd(new Date()) ? " 今日" : "");
+      const c = document.createElement("span"); c.className = "dcount"; c.textContent = diary.counts[day] || 0;
+      const btn = document.createElement("button"); btn.className = "plus"; btn.textContent = "+"; btn.setAttribute("aria-label", t.textContent + " に追加");
+      btn.onclick = () => {
+        diary.counts[day] = (diary.counts[day] || 0) + 1;
+        try { localStorage.setItem(DK, JSON.stringify(diary)); } catch (e) {}
+        c.textContent = diary.counts[day]; sub.textContent = "合計 " + total();
+      };
+      const right = document.createElement("div"); right.className = "icons"; right.style.gap = "12px"; right.style.alignItems = "center";
+      right.append(c, btn);
+      li.append(t, right); ul.append(li);
+    });
+    sub.textContent = "合計 " + total();
+    box.append(back, h, sub, ul);
   }
 
   function renderBatch() {
