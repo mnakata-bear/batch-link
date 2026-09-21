@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>バッチ連携</title>
+<style>
+  :root { --bg:#eef5ff; --fg:#1f2d3d; --accent:#2563eb; --card:#fff; --line:#cfe0f7; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#101a2b; --fg:#e6eefb; --accent:#6ea8fe; --card:#1a2740; --line:#2c3f5e; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:var(--bg); color:var(--fg);
+         font-family:system-ui,"Yu Gothic",sans-serif; display:flex; justify-content:center; padding:24px 12px; }
+  main { width:100%; max-width:420px; }
+  h1 { text-align:center; margin:16px 0 8px; font-size:1.5rem; }
+  .meta { text-align:center; font-size:.85rem; opacity:.7; margin-bottom:16px; }
+  input { width:100%; font:inherit; font-size:16px; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); margin-bottom:12px; }
+  ul { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
+  li { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; font-size:1.05rem; }
+  .msg { text-align:center; opacity:.7; padding:24px 0; }
+  button { font:inherit; margin:0 auto 12px; display:block; background:transparent; border:none; color:var(--accent); padding:6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>バッチ連携</h1>
+  <div class="meta" id="meta">読み込み中…</div>
+  <button id="reload" type="button">↻ 更新</button>
+  <input id="q" type="search" placeholder="絞り込み" autocomplete="off">
+  <ul id="list"></ul>
+  <div class="msg" id="msg" hidden></div>
+</main>
+<script>
+  const list = document.getElementById("list"), meta = document.getElementById("meta"),
+        msg = document.getElementById("msg"), q = document.getElementById("q");
+  let items = [];
+
+  function render() {
+    const k = q.value.trim().toLowerCase();
+    const shown = k ? items.filter(x => x.toLowerCase().includes(k)) : items;
+    list.innerHTML = "";
+    shown.forEach(x => { const li = document.createElement("li"); li.textContent = x; list.append(li); });
+    msg.hidden = shown.length > 0;
+    msg.textContent = items.length ? "該当なし" : "データがありません";
+  }
+
+  async function load() {
+    meta.textContent = "読み込み中…";
+    try {
+      const r = await fetch("list.json?t=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) throw new Error(r.status);
+      const d = await r.json();
+      items = Array.isArray(d.items) ? d.items : [];
+      meta.textContent = items.length + "件 ・ 更新 " + (d.updated || "不明");
+    } catch (e) {
+      items = [];
+      meta.textContent = "読み込めませんでした";
+    }
+    render();
+  }
+
+  q.oninput = render;
+  document.getElementById("reload").onclick = load;
+  load();
+</script>
+</body>
+</html>
