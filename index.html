@@ -40,7 +40,11 @@
   .backup button { flex:1; padding:10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); font-size:.85rem; }
   .note { font-size:.72rem; opacity:.6; margin-top:8px; text-align:center; }
   .batchcard { display:block; margin-top:12px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; text-decoration:none; color:inherit; font-size:1.1rem; }
-  .bq { margin-bottom:12px; }
+  .g.done.on { background:#34a853; border-color:#34a853; color:#fff; }
+  .blist li.bitem { display:flex; justify-content:space-between; align-items:center; padding:8px 14px; }
+  .blist li.struck span:first-child { text-decoration:line-through; opacity:.5; }
+  .bhead { margin-bottom:6px; }
+  .bq { margin-bottom:12px; width:100%; }
   .blist { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
   .blist li { display:block; padding:12px 14px; font-size:1.05rem; }
   .back { background:transparent; border:none; color:var(--accent); font-size:1rem; padding:8px 0; }
@@ -166,12 +170,37 @@
     const q = document.createElement("input"); q.type = "search"; q.placeholder = "絞り込み"; q.className = "bq";
     const ul = document.createElement("ul"); ul.className = "blist";
     const msg = document.createElement("div"); msg.className = "sub"; msg.hidden = true;
-    let data = [];
+    let data = [], meta = "";
+    const BK = "batch-marks-v1";
+    let marks = {};
+    try { marks = JSON.parse(localStorage.getItem(BK)) || {}; } catch (e) {}
+    const saveM = () => { try { localStorage.setItem(BK, JSON.stringify(marks)); } catch (e) {} };
+    const cnt = () => { sub.textContent = data.length ? meta + "（済: " + data.filter(x => marks[x] && marks[x].d).length + " / ✕: " + data.filter(x => marks[x] && marks[x].x).length + "）" : meta; };
+    const mkBtn = (name, key, label, cls, li) => {
+      const b = document.createElement("button"); b.className = "g " + cls + ((marks[name] || {})[key] ? " on" : ""); b.textContent = label;
+      b.setAttribute("aria-pressed", !!(marks[name] || {})[key]);
+      b.onclick = () => {
+        const m = marks[name] = marks[name] || {};
+        if (m[key]) delete m[key]; else m[key] = true;
+        if (!m.d && !m.x) delete marks[name];
+        saveM();
+        b.classList.toggle("on", !!(marks[name] || {})[key]); b.setAttribute("aria-pressed", !!(marks[name] || {})[key]);
+        li.classList.toggle("struck", !!(marks[name] || {}).x);
+        cnt();
+      };
+      return b;
+    };
     const draw = () => {
       const k = q.value.trim().toLowerCase();
       const shown = k ? data.filter(x => x.toLowerCase().includes(k)) : data;
       ul.innerHTML = "";
-      shown.forEach(x => { const li = document.createElement("li"); li.textContent = x; ul.append(li); });
+      shown.forEach(x => {
+        const li = document.createElement("li"); li.className = "bitem" + ((marks[x] || {}).x ? " struck" : "");
+        const t = document.createElement("span"); t.textContent = x;
+        const ic = document.createElement("div"); ic.className = "icons";
+        [mkBtn(x, "d", "済", "done", li), mkBtn(x, "x", "✕", "x", li)].forEach(b => { const c = document.createElement("span"); c.append(b); ic.append(c); });
+        li.append(t, ic); ul.append(li);
+      });
       msg.hidden = shown.length > 0; msg.textContent = data.length ? "該当なし" : "データがありません";
     };
     const load = async () => {
@@ -181,12 +210,14 @@
         if (!r.ok) throw 0;
         const d = await r.json();
         data = Array.isArray(d.items) ? d.items : [];
-        sub.textContent = data.length + "件 ・ 更新 " + (d.updated || "不明");
-      } catch (e) { data = []; sub.textContent = "読み込めませんでした"; }
-      draw();
+        meta = data.length + "件 ・ 更新 " + (d.updated || "不明");
+      } catch (e) { data = []; meta = "読み込めませんでした"; }
+      cnt(); draw();
     };
     q.oninput = draw; rl.onclick = load;
-    box.append(back, h, sub, rl, q, ul, msg);
+    const head = document.createElement("div"); head.className = "hh bhead";
+    head.innerHTML = "<span>番号</span><div class='icons'><span>済</span><span>使用不可</span></div>";
+    box.append(back, h, sub, rl, q, head, ul, msg);
     load();
   }
 
