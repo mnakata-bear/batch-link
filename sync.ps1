@@ -11,6 +11,12 @@ $items = @(Get-Content -Path $Source -Encoding UTF8 |
   ForEach-Object { $_.Trim([char]0xFEFF).Trim() } |
   Where-Object { $_ -ne "" })
 
+$jsonPath = Join-Path $dir "list.json"
+if (Test-Path $jsonPath) {
+  $old = @((Get-Content -Path $jsonPath -Raw -Encoding UTF8 | ConvertFrom-Json).items)
+  if ((($old -join "`n")) -ceq (($items -join "`n"))) { Write-Output "no change in list"; exit 0 }
+}
+
 $obj = [ordered]@{ updated = (Get-Date -Format "yyyy-MM-dd HH:mm"); items = $items }
 $json = $obj | ConvertTo-Json -Depth 3
 [System.IO.File]::WriteAllText((Join-Path $dir "list.json"), $json, (New-Object System.Text.UTF8Encoding($false)))
