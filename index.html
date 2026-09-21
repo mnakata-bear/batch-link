@@ -47,6 +47,7 @@
   .chips { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
   .chip { margin:0; padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--fg); font-size:.85rem; }
   .chip.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .plus.minus { background:transparent; color:var(--accent); border:2px solid var(--accent); }
   .dcount { min-width:2ch; text-align:right; font-weight:600; font-variant-numeric:tabular-nums; }
   .bq { margin-bottom:12px; width:100%; }
   .blist { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
@@ -191,13 +192,20 @@
       const t = document.createElement("span"); t.textContent = m + "月" + dd + "日（" + W[new Date(y, m - 1, dd).getDay()] + "）" + (day === ymd(new Date()) ? " 今日" : "");
       const c = document.createElement("span"); c.className = "dcount"; c.textContent = diary.counts[day] || 0;
       const btn = document.createElement("button"); btn.className = "plus"; btn.textContent = "+"; btn.setAttribute("aria-label", t.textContent + " に追加");
+      const mbtn = document.createElement("button"); mbtn.className = "plus minus"; mbtn.textContent = "−"; mbtn.setAttribute("aria-label", t.textContent + " を減らす");
+      mbtn.onclick = () => {
+        if (!(diary.counts[day] > 0)) return;
+        diary.counts[day]--; if (!diary.counts[day]) delete diary.counts[day];
+        try { localStorage.setItem(DK, JSON.stringify(diary)); } catch (e) {}
+        c.textContent = diary.counts[day] || 0; sub.textContent = "合計 " + total();
+      };
       btn.onclick = () => {
         diary.counts[day] = (diary.counts[day] || 0) + 1;
         try { localStorage.setItem(DK, JSON.stringify(diary)); } catch (e) {}
         c.textContent = diary.counts[day]; sub.textContent = "合計 " + total();
       };
       const right = document.createElement("div"); right.className = "icons"; right.style.gap = "12px"; right.style.alignItems = "center";
-      right.append(c, btn);
+      right.append(mbtn, c, btn);
       li.append(t, right); ul.append(li);
     });
     sub.textContent = "合計 " + total();
@@ -340,7 +348,8 @@
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
 
   document.getElementById("export").onclick = () => {
-    const blob = new Blob([JSON.stringify(items)], { type: "application/json" });
+    const rd = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
+    const blob = new Blob([JSON.stringify({ v: 2, items, diary: rd("diary-v1"), marks: rd("batch-marks-v1") })], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "backup-" + new Date().toISOString().slice(0, 10) + ".json";
@@ -354,10 +363,17 @@
     const r = new FileReader();
     r.onload = () => {
       try {
-        const d = JSON.parse(r.result);
+        const raw = JSON.parse(r.result);
+        const d = Array.isArray(raw) ? raw : raw.items;
         if (!Array.isArray(d) || !d.every(x => x && typeof x.name === "string" && typeof x.start === "string")) throw 0;
         if (!confirm("今のデータをバックアップの内容で置き換えます。よろしいですか？")) return;
         items = d.map(x => Object.assign(mk(x.start), x, { g: x.g || {}, t: x.t || {}, x: x.x || {} }));
+        if (!Array.isArray(raw)) {
+          try {
+            if (raw.diary) localStorage.setItem("diary-v1", JSON.stringify(raw.diary));
+            if (raw.marks) localStorage.setItem("batch-marks-v1", JSON.stringify(raw.marks));
+          } catch (e) {}
+        }
         save(); location.hash = ""; render();
         document.getElementById("note").textContent = "読み込みました";
       } catch (err) { alert("バックアップファイルを読み込めませんでした"); }
