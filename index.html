@@ -44,6 +44,9 @@
   .blist li.bitem { display:flex; justify-content:space-between; align-items:center; padding:8px 14px; }
   .blist li.struck span:first-child { text-decoration:line-through; opacity:.5; }
   .bhead { margin-bottom:6px; }
+  .chips { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+  .chip { margin:0; padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--fg); font-size:.85rem; }
+  .chip.on { background:var(--accent); border-color:var(--accent); color:#fff; }
   .bq { margin-bottom:12px; width:100%; }
   .blist { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
   .blist li { display:block; padding:12px 14px; font-size:1.05rem; }
@@ -174,6 +177,11 @@
     const BK = "batch-marks-v1";
     let marks = {};
     try { marks = JSON.parse(localStorage.getItem(BK)) || {}; } catch (e) {}
+    const MODES = [["n", "通常"], ["d", "済のみ"], ["x", "使用不可"], ["a", "すべて"]];
+    let mode = "n";
+    try { mode = localStorage.getItem("batch-mode") || "n"; } catch (e) {}
+    if (!MODES.some(m => m[0] === mode)) mode = "n";
+    const ok = n => { const m = marks[n] || {}; return mode === "a" || (mode === "n" && !m.x) || (mode === "d" && m.d && !m.x) || (mode === "x" && m.x); };
     const saveM = () => { try { localStorage.setItem(BK, JSON.stringify(marks)); } catch (e) {} };
     const cnt = () => { sub.textContent = data.length ? meta + "（済: " + data.filter(x => marks[x] && marks[x].d).length + " / ✕: " + data.filter(x => marks[x] && marks[x].x).length + "）" : meta; };
     const mkBtn = (name, key, label, cls, li) => {
@@ -187,12 +195,13 @@
         b.classList.toggle("on", !!(marks[name] || {})[key]); b.setAttribute("aria-pressed", !!(marks[name] || {})[key]);
         li.classList.toggle("struck", !!(marks[name] || {}).x);
         cnt();
+        if (!ok(name)) draw();
       };
       return b;
     };
     const draw = () => {
       const k = q.value.trim().toLowerCase();
-      const shown = k ? data.filter(x => x.toLowerCase().includes(k)) : data;
+      const shown = data.filter(x => ok(x) && (!k || x.toLowerCase().includes(k)));
       ul.innerHTML = "";
       shown.forEach(x => {
         const li = document.createElement("li"); li.className = "bitem" + ((marks[x] || {}).x ? " struck" : "");
@@ -215,9 +224,19 @@
       cnt(); draw();
     };
     q.oninput = draw; rl.onclick = load;
+    const chips = document.createElement("div"); chips.className = "chips";
+    MODES.forEach(([key, label]) => {
+      const c = document.createElement("button"); c.type = "button"; c.className = "chip" + (key === mode ? " on" : ""); c.textContent = label;
+      c.onclick = () => {
+        mode = key; try { localStorage.setItem("batch-mode", mode); } catch (e) {}
+        chips.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === c));
+        draw();
+      };
+      chips.append(c);
+    });
     const head = document.createElement("div"); head.className = "hh bhead";
     head.innerHTML = "<span>番号</span><div class='icons'><span>済</span><span>使用不可</span></div>";
-    box.append(back, h, sub, rl, q, head, ul, msg);
+    box.append(back, h, sub, rl, q, chips, head, ul, msg);
     load();
   }
 
