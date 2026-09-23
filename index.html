@@ -280,7 +280,7 @@
     };
     // 合言葉フォーム（端末ごとに初回1回だけ）
     const pf = document.createElement("form"); pf.className = "open"; pf.hidden = true;
-    const pin = document.createElement("input"); pin.type = "password"; pin.placeholder = "合言葉"; pin.autocomplete = "current-password";
+    const pin = document.createElement("input"); pin.type = "password"; pin.placeholder = "合言葉"; pin.autocomplete = "current-password"; pin.autocapitalize = "off"; pin.spellcheck = false;
     const pbtn = document.createElement("button"); pbtn.type = "submit"; pbtn.textContent = "開く";
     pf.append(pin, pbtn);
     let enc = null;
