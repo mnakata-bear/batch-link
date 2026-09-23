@@ -77,6 +77,7 @@
        border:2px dashed var(--line); border-radius:12px; padding:14px 16px; font-size:1.1rem; display:flex; justify-content:space-between; align-items:center; }
   form { display:none; gap:8px; margin-top:10px; }
   form.open { display:flex; }
+  form[hidden] { display:none; }
   input { flex:1; min-width:0; font:inherit; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); }
   form button { padding:10px 16px; border:none; border-radius:8px; background:var(--accent); color:#fff; }
 </style>
@@ -212,6 +213,20 @@
     box.append(back, h, sub, ul);
   }
 
+  // list.json の復号（sync.ps1 と同じ方式: PBKDF2-SHA256 → AES-256-CBC + HMAC-SHA256）
+  const PK = "batch-pass-v1";
+  const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  async function decryptList(d, pass) {
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveBits"]);
+    const bits = new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", salt: unb64(d.salt), iterations: d.iter, hash: "SHA-256" }, base, 512));
+    const ek = await crypto.subtle.importKey("raw", bits.slice(0, 32), "AES-CBC", false, ["decrypt"]);
+    const mk = await crypto.subtle.importKey("raw", bits.slice(32), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+    const iv = unb64(d.iv), ct = unb64(d.ct), m = new Uint8Array(iv.length + ct.length);
+    m.set(iv); m.set(ct, iv.length);
+    if (!await crypto.subtle.verify("HMAC", mk, unb64(d.mac), m)) throw new Error("bad pass");
+    return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-CBC", iv }, ek, ct)));
+  }
+
   function renderBatch() {
     const box = document.getElementById("detail");
     document.title = "バッチ連携";
@@ -263,16 +278,42 @@
       });
       msg.hidden = shown.length > 0; msg.textContent = data.length ? "該当なし" : "データがありません";
     };
+    // 合言葉フォーム（端末ごとに初回1回だけ）
+    const pf = document.createElement("form"); pf.className = "open"; pf.hidden = true;
+    const pin = document.createElement("input"); pin.type = "password"; pin.placeholder = "合言葉"; pin.autocomplete = "current-password";
+    const pbtn = document.createElement("button"); pbtn.type = "submit"; pbtn.textContent = "開く";
+    pf.append(pin, pbtn);
+    let enc = null;
+    const show = d => {
+      pf.hidden = true;
+      data = Array.isArray(d.items) ? d.items : [];
+      meta = data.length + "件 ・ 更新 " + (d.updated || "不明");
+      cnt(); draw();
+    };
+    const ask = text => { data = []; meta = text; cnt(); draw(); msg.hidden = true; pf.hidden = false; pin.value = ""; pin.focus(); };
+    pf.onsubmit = async e => {
+      e.preventDefault();
+      const p = pin.value.trim(); if (!p || !enc) return;
+      sub.textContent = "確認中…"; pbtn.disabled = true;
+      try { const d = await decryptList(enc, p); try { localStorage.setItem(PK, p); } catch (e) {} show(d); }
+      catch (err) { ask("合言葉が違います"); }
+      pbtn.disabled = false;
+    };
     const load = async () => {
       sub.textContent = "読み込み中…";
+      let d;
       try {
         const r = await fetch("list.json?t=" + Date.now(), { cache: "no-store" });
         if (!r.ok) throw 0;
-        const d = await r.json();
-        data = Array.isArray(d.items) ? d.items : [];
-        meta = data.length + "件 ・ 更新 " + (d.updated || "不明");
-      } catch (e) { data = []; meta = "読み込めませんでした"; }
-      cnt(); draw();
+        d = await r.json();
+      } catch (e) { data = []; meta = "読み込めませんでした"; cnt(); draw(); return; }
+      if (!d.ct) return show(d);
+      enc = d;
+      let p = null;
+      try { p = localStorage.getItem(PK); } catch (e) {}
+      if (!p) return ask("合言葉を入力してください（この端末で初回のみ）");
+      try { show(await decryptList(d, p)); }
+      catch (e) { try { localStorage.removeItem(PK); } catch (e) {} ask("合言葉が変わりました。入力し直してください"); }
     };
     q.oninput = draw; rl.onclick = load;
     const chips = document.createElement("div"); chips.className = "chips";
@@ -287,7 +328,7 @@
     });
     const head = document.createElement("div"); head.className = "hh bhead";
     head.innerHTML = "<span>番号</span><div class='icons'><span>済</span><span>使用不可</span></div>";
-    box.append(back, h, sub, rl, q, chips, head, ul, msg);
+    box.append(back, h, sub, pf, rl, q, chips, head, ul, msg);
     load();
   }
 
