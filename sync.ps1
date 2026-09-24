@@ -1,7 +1,7 @@
 ﻿# success_list.txt -> list.json（合言葉で暗号化）に変換し、変更があれば GitHub へ push する
 # 合言葉は同じフォルダの passphrase.txt（git 管理外）に1行で書いておく
 param(
-  [string]$Source = "H:\AI\cromead\success_list.txt",
+  [string]$Source = (Join-Path (Split-Path $PSScriptRoot) "cromead\success_list.txt"),
   [string]$PassFile = (Join-Path $PSScriptRoot "passphrase.txt"),
   [switch]$NoPush
 )
