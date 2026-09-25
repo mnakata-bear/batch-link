@@ -281,10 +281,8 @@
     let marks = {};
     try { marks = JSON.parse(localStorage.getItem(BK)) || {}; } catch (e) {}
     const MODES = [["n", "通常"], ["d", "済のみ"], ["x", "使用不可"], ["a", "すべて"]];
-    let mode = "n";
-    try { mode = localStorage.getItem("batch-mode") || "n"; } catch (e) {}
-    if (!MODES.some(m => m[0] === mode)) mode = "n";
-    const ok = n => { const m = marks[n] || {}; return mode === "a" || (mode === "n" && !m.x) || (mode === "d" && m.d && !m.x) || (mode === "x" && m.x); };
+    let mode = "n"; // 開くたびに「通常」（済も✕も付いていないもの）から
+    const ok = n => { const m = marks[n] || {}; return mode === "a" || (mode === "n" && !m.d && !m.x) || (mode === "d" && m.d && !m.x) || (mode === "x" && m.x); };
     const saveM = () => { try { localStorage.setItem(BK, JSON.stringify(marks)); } catch (e) {} };
     const cnt = () => { sub.textContent = data.length ? meta + "（済: " + data.filter(x => marks[x] && marks[x].d).length + " / ✕: " + data.filter(x => marks[x] && marks[x].x).length + "）" : meta; };
     const mkBtn = (name, key, label, cls, li) => {
@@ -357,7 +355,7 @@
     MODES.forEach(([key, label]) => {
       const c = document.createElement("button"); c.type = "button"; c.className = "chip" + (key === mode ? " on" : ""); c.textContent = label;
       c.onclick = () => {
-        mode = key; try { localStorage.setItem("batch-mode", mode); } catch (e) {}
+        mode = key;
         chips.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === c));
         draw();
       };
