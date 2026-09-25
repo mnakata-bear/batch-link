@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="only light">
+<meta name="theme-color" content="#eef5ff">
 <title>熊の秘密のノート</title>
 <style>
-  :root { --bg:#eef5ff; --fg:#1f2d3d; --accent:#2563eb; --card:#fff; --line:#cfe0f7; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#101a2b; --fg:#e6eefb; --accent:#6ea8fe; --card:#1a2740; --line:#2c3f5e; }
-  }
+  /* システムがダーク設定でも常にライト表示（ブラウザの自動ダーク化も抑止） */
+  :root { color-scheme: only light; --bg:#eef5ff; --fg:#1f2d3d; --accent:#2563eb; --card:#fff; --line:#cfe0f7; }
   * { box-sizing:border-box; }
   body { margin:0; min-height:100vh; background:var(--bg); color:var(--fg);
          font-family:system-ui,"Yu Gothic",sans-serif; display:flex; justify-content:center; padding:24px 16px; }
