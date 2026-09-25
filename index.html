@@ -84,6 +84,14 @@
 </head>
 <body>
 <main>
+  <div id="gate" hidden>
+    <h1>熊の秘密のノート</h1>
+    <div class="sub" id="gateMsg">合言葉を入力してください（この端末で初回のみ）</div>
+    <form class="open" id="gateForm">
+      <input id="gatePass" type="password" placeholder="合言葉" autocomplete="current-password" autocapitalize="off" spellcheck="false">
+      <button type="submit" id="gateBtn">開く</button>
+    </form>
+  </div>
   <div id="detail" hidden></div>
   <div id="cover">
   <h1>熊の秘密のノート</h1>
@@ -141,6 +149,12 @@
   }
 
   function render() {
+    const gate = document.getElementById("gate");
+    if (!unlocked()) {
+      gate.hidden = false; document.getElementById("cover").hidden = true; document.getElementById("detail").hidden = true;
+      document.title = "熊の秘密のノート"; return;
+    }
+    gate.hidden = true;
     const m = location.hash.match(/^#\/(\d+)$/);
     const idx = m ? +m[1] : -1;
     if (location.hash === "#/diary") { document.getElementById("cover").hidden = true; document.getElementById("detail").hidden = false; return renderDiary(); }
@@ -226,6 +240,29 @@
     if (!await crypto.subtle.verify("HMAC", mk, unb64(d.mac), m)) throw new Error("bad pass");
     return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-CBC", iv }, ek, ct)));
   }
+
+  // トップの合言葉ゲート（端末ごとに初回1回だけ。list.json を復号できたら合格）
+  let gateOk = false;
+  const unlocked = () => { if (gateOk) return true; try { return !!localStorage.getItem(PK); } catch (e) { return false; } };
+  document.getElementById("gateForm").onsubmit = async e => {
+    e.preventDefault();
+    const p = document.getElementById("gatePass").value.trim(), gm = document.getElementById("gateMsg"), gb = document.getElementById("gateBtn");
+    if (!p) return;
+    gm.textContent = "確認中…"; gb.disabled = true;
+    try {
+      const r = await fetch("list.json?t=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) throw new Error("net");
+      const d = await r.json();
+      if (d.ct) await decryptList(d, p);
+      gateOk = true;
+      try { localStorage.setItem(PK, p); } catch (e) {}
+      document.getElementById("gatePass").value = ""; render();
+    } catch (err) {
+      gm.textContent = (err.message === "net" || err instanceof TypeError) ? "読み込めませんでした。通信を確認してください" : "合言葉が違います";
+      document.getElementById("gatePass").value = ""; document.getElementById("gatePass").focus();
+    }
+    gb.disabled = false;
+  };
 
   function renderBatch() {
     const box = document.getElementById("detail");
