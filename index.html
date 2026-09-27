@@ -66,6 +66,16 @@
   .icons { display:flex; gap:8px; }
   .g.x { color:#999; border-color:#bbb; }
   .g.x.on { background:#9e9e9e; border-color:#9e9e9e; color:#fff; }
+  .g.tri.on { background:#f4511e; border-color:#f4511e; color:#fff; }
+  .g.done.s1 { background:#4285f4; border-color:#4285f4; color:#fff; }
+  .g.done.s2 { background:#34a853; border-color:#34a853; color:#fff; }
+  .g.done.s3 { background:#fbbc04; border-color:#fbbc04; color:#fff; }
+  .legend { display:flex; gap:10px; align-items:center; font-size:.75rem; opacity:.75; margin:-2px 0 10px; flex-wrap:wrap; }
+  .legend .dot { display:inline-block; width:12px; height:12px; border-radius:50%; margin:0 3px 0 8px; vertical-align:middle; }
+  .legend .dot:first-child { margin-left:4px; }
+  .legend .dot.s1 { background:#4285f4; }
+  .legend .dot.s2 { background:#34a853; }
+  .legend .dot.s3 { background:#fbbc04; }
   .h.struck span:first-child { text-decoration:line-through; opacity:.5; }
   .g.two.on { background:#34a853; border-color:#34a853; }
   .count { min-width:2ch; text-align:right; opacity:.7; font-variant-numeric:tabular-nums; }
@@ -284,17 +294,35 @@
     let mode = "n"; // 開くたびに「通常」（済も✕も付いていないもの）から
     const ok = n => { const m = marks[n] || {}; return mode === "a" || (mode === "n" && !m.d && !m.x) || (mode === "d" && m.d && !m.x) || (mode === "x" && m.x); };
     const saveM = () => { try { localStorage.setItem(BK, JSON.stringify(marks)); } catch (e) {} };
-    const cnt = () => { sub.textContent = data.length ? meta + "（済: " + data.filter(x => marks[x] && marks[x].d).length + " / ✕: " + data.filter(x => marks[x] && marks[x].x).length + "）" : meta; };
+    const cnt = () => { sub.textContent = data.length ? meta + "（済: " + data.filter(x => marks[x] && marks[x].d).length + " / △: " + data.filter(x => marks[x] && marks[x].t).length + " / ✕: " + data.filter(x => marks[x] && marks[x].x).length + "）" : meta; };
     const mkBtn = (name, key, label, cls, li) => {
       const b = document.createElement("button"); b.className = "g " + cls + ((marks[name] || {})[key] ? " on" : ""); b.textContent = label;
       b.setAttribute("aria-pressed", !!(marks[name] || {})[key]);
       b.onclick = () => {
         const m = marks[name] = marks[name] || {};
         if (m[key]) delete m[key]; else m[key] = true;
-        if (!m.d && !m.x) delete marks[name];
+        if (!m.d && !m.x && !m.t) delete marks[name];
         saveM();
         b.classList.toggle("on", !!(marks[name] || {})[key]); b.setAttribute("aria-pressed", !!(marks[name] || {})[key]);
         li.classList.toggle("struck", !!(marks[name] || {}).x);
+        cnt();
+        if (!ok(name)) draw();
+      };
+      return b;
+    };
+    // 済ボタンは押すたびに 1回目=青 → 2回目=緑 → 3回目=黄 → 未 とサイクルする
+    const mkDoneBtn = (name, li) => {
+      const b = document.createElement("button"); b.className = "g done"; b.textContent = "済";
+      const stage = () => (marks[name] || {}).d || 0;
+      const apply = s => { b.classList.remove("s1", "s2", "s3"); if (s) b.classList.add("s" + s); b.setAttribute("aria-pressed", s > 0); };
+      apply(stage());
+      b.onclick = () => {
+        const m = marks[name] = marks[name] || {};
+        const next = (m.d || 0) >= 3 ? 0 : (m.d || 0) + 1;
+        if (next) m.d = next; else delete m.d;
+        if (!m.d && !m.x && !m.t) delete marks[name];
+        saveM();
+        apply(next);
         cnt();
         if (!ok(name)) draw();
       };
@@ -308,7 +336,7 @@
         const li = document.createElement("li"); li.className = "bitem" + ((marks[x] || {}).x ? " struck" : "");
         const t = document.createElement("span"); t.textContent = x;
         const ic = document.createElement("div"); ic.className = "icons";
-        [mkBtn(x, "d", "済", "done", li), mkBtn(x, "x", "✕", "x", li)].forEach(b => { const c = document.createElement("span"); c.append(b); ic.append(c); });
+        [mkDoneBtn(x, li), mkBtn(x, "t", "△", "tri", li), mkBtn(x, "x", "✕", "x", li)].forEach(b => { const c = document.createElement("span"); c.append(b); ic.append(c); });
         li.append(t, ic); ul.append(li);
       });
       msg.hidden = shown.length > 0; msg.textContent = data.length ? "該当なし" : "データがありません";
@@ -361,9 +389,11 @@
       };
       chips.append(c);
     });
+    const legend = document.createElement("div"); legend.className = "legend";
+    legend.innerHTML = "済 1回目<span class='dot s1'></span>2回目<span class='dot s2'></span>3回目<span class='dot s3'></span>";
     const head = document.createElement("div"); head.className = "hh bhead";
-    head.innerHTML = "<span>番号</span><div class='icons'><span>済</span><span>使用不可</span></div>";
-    box.append(back, h, sub, pf, rl, q, chips, head, ul, msg);
+    head.innerHTML = "<span>番号</span><div class='icons'><span>済</span><span>△</span><span>使用不可</span></div>";
+    box.append(back, h, sub, pf, rl, q, chips, legend, head, ul, msg);
     load();
   }
 
