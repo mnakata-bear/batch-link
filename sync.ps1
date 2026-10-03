@@ -22,6 +22,11 @@ $ex = @{}
 if (Test-Path $exFile) { Get-Content -Path $exFile -Encoding UTF8 | ForEach-Object { $t = $_.Trim([char]0xFEFF).Trim(); if ($t) { $ex[$t] = $true } } }
 $items = @($items | Select-Object -Unique | Where-Object { -not $ex.ContainsKey($_) })
 
+# back up the git-ignored lists outside the repo (..atch_link_backup) on every run
+$bk = Join-Path (Split-Path $dir) "batch_link_backup"
+New-Item -ItemType Directory -Force -Path $bk | Out-Null
+foreach ($f in "exclude.txt", "extra.txt") { $fp = Join-Path $dir $f; if (Test-Path $fp) { Copy-Item $fp (Join-Path $bk $f) -Force } }
+
 # extra.txt (git-ignored): ids always added on top (written by Ltest\line_upload.ps1); wins over exclude.txt
 $extraFile = Join-Path $dir "extra.txt"
 if (Test-Path $extraFile) {
