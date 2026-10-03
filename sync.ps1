@@ -16,6 +16,12 @@ $items = @(Get-Content -Path $Source -Encoding UTF8 |
   ForEach-Object { $_.Trim([char]0xFEFF).Trim() } |
   Where-Object { $_ -ne "" })
 
+# exclude.txt (git-ignored): ids to drop from the list; duplicates removed
+$exFile = Join-Path $dir "exclude.txt"
+$ex = @{}
+if (Test-Path $exFile) { Get-Content -Path $exFile -Encoding UTF8 | ForEach-Object { $t = $_.Trim([char]0xFEFF).Trim(); if ($t) { $ex[$t] = $true } } }
+$items = @($items | Select-Object -Unique | Where-Object { -not $ex.ContainsKey($_) })
+
 # 暗号文は毎回変わるので、平文のハッシュで変更を判定する
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 $sha = [System.Security.Cryptography.SHA256]::Create()
