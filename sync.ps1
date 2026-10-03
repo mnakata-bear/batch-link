@@ -22,6 +22,13 @@ $ex = @{}
 if (Test-Path $exFile) { Get-Content -Path $exFile -Encoding UTF8 | ForEach-Object { $t = $_.Trim([char]0xFEFF).Trim(); if ($t) { $ex[$t] = $true } } }
 $items = @($items | Select-Object -Unique | Where-Object { -not $ex.ContainsKey($_) })
 
+# extra.txt (git-ignored): ids always added on top (written by Ltest\line_upload.ps1); wins over exclude.txt
+$extraFile = Join-Path $dir "extra.txt"
+if (Test-Path $extraFile) {
+  $extra = @(Get-Content -Path $extraFile -Encoding UTF8 | ForEach-Object { $_.Trim([char]0xFEFF).Trim() } | Where-Object { $_ })
+  $items = @($items + $extra | Select-Object -Unique)
+}
+
 # 暗号文は毎回変わるので、平文のハッシュで変更を判定する
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 $sha = [System.Security.Cryptography.SHA256]::Create()
