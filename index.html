@@ -99,7 +99,7 @@
     <h1>熊の秘密のノート</h1>
     <div class="sub" id="gateMsg">合言葉を入力してください（この端末で初回のみ）</div>
     <form class="open" id="gateForm">
-      <input id="gatePass" type="password" placeholder="合言葉" autocomplete="current-password" autocapitalize="off" spellcheck="false">
+      <input id="gatePass" type="password" placeholder="合言葉" autocomplete="current-password" autocapitalize="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*">
       <button type="submit" id="gateBtn">開く</button>
     </form>
   </div>
@@ -344,7 +344,7 @@
     };
     // 合言葉フォーム（端末ごとに初回1回だけ）
     const pf = document.createElement("form"); pf.className = "open"; pf.hidden = true;
-    const pin = document.createElement("input"); pin.type = "password"; pin.placeholder = "合言葉"; pin.autocomplete = "current-password"; pin.autocapitalize = "off"; pin.spellcheck = false;
+    const pin = document.createElement("input"); pin.type = "password"; pin.placeholder = "合言葉"; pin.autocomplete = "current-password"; pin.autocapitalize = "off"; pin.spellcheck = false; pin.inputMode = "numeric"; pin.pattern = "[0-9]*";
     const pbtn = document.createElement("button"); pbtn.type = "submit"; pbtn.textContent = "開く";
     pf.append(pin, pbtn);
     let enc = null;
